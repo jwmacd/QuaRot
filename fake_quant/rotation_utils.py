@@ -1,11 +1,11 @@
-from . import model_utils
+import fake_quant.model_utils as model_utils
 import torch
 import typing
-from . import qua_utils
+import fake_quant.qua_utils as qua_utils
 import transformers
 import tqdm, math
-from . import quant_utils
-from .hadamard_utils import random_hadamard_matrix, apply_exact_had_to_linear, is_pow2
+import fake_quant.quant_utils as quant_utils
+from fake_quant.hadamard_utils import random_hadamard_matrix, apply_exact_had_to_linear, is_pow2
 from fast_hadamard_transform import hadamard_transform
 
 def fuse_ln_linear(layernorm: torch.nn.Module, linear_layers: typing.Iterable[torch.nn.Linear]) -> None:

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import torch.utils.cpp_extension as torch_cpp_ext
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 import os
@@ -48,6 +48,7 @@ if __name__ == '__main__':
     remove_unwanted_pytorch_nvcc_flags()
     setup(
         name='quarot',
+        packages=find_packages(),
         ext_modules=[
             CUDAExtension(
                 name='quarot._CUDA',
