@@ -1,7 +1,7 @@
 import model_utils
 import torch
 import typing
-import utils
+from . import utils
 import transformers
 import tqdm, math
 import quant_utils
