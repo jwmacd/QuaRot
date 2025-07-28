@@ -96,7 +96,11 @@ def apply_quarot_to_model(model, mode='hadamard'):
         # Clear sys.path and add only what we need
         sys.path = [fake_quant_path, quarot_root] + [p for p in sys.path if '/app' not in p]
         
-        # Now import - this should find the correct utils
+        # Import utils first to ensure it's available for rotation_utils
+        sys.path.insert(0, fake_quant_path)
+        import utils
+        
+        # Now import rotation_utils - it should find the utils module
         from fake_quant import rotation_utils
         
         # Mock args object 
