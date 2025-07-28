@@ -9,6 +9,7 @@ import quarot._CUDA
 __all__ = [ 
            "matmul", #int-4 matmul
            "sym_quant", "sym_dequant", "PackedQuantizedTensor", # Quantization
+           "apply_quarot_to_model",  # High-level API
 ]
 
 class ShapeHandler:
@@ -69,3 +70,48 @@ class PackedQuantizedTensor:
     @property
     def dtype(self):
         return self.quantized_x.dtype
+
+
+def apply_quarot_to_model(model, mode='hadamard'):
+    """Apply QuaRot rotation to a model - simplified API for external use.
+    
+    Args:
+        model: The model to rotate (must be on CPU)
+        mode: Rotation mode ('hadamard' or 'random')
+    
+    Returns:
+        The rotated model (in-place modification)
+    """
+    import sys
+    import os
+    
+    # Add fake_quant to path temporarily  
+    quarot_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    fake_quant_path = os.path.join(quarot_root, 'fake_quant')
+    
+    # Save current sys.path
+    old_path = sys.path.copy()
+    
+    try:
+        # Clear sys.path and add only what we need
+        sys.path = [fake_quant_path, quarot_root] + [p for p in sys.path if '/app' not in p]
+        
+        # Now import - this should find the correct utils
+        from fake_quant import rotation_utils
+        
+        # Mock args object 
+        class Args:
+            rotate_mode = mode
+            fp32_had = False
+            
+        args = Args()
+        
+        # Apply rotation
+        rotation_utils.fuse_layer_norms(model)
+        rotation_utils.rotate_model(model, args)
+        
+    finally:
+        # Restore sys.path
+        sys.path = old_path
+    
+    return model
