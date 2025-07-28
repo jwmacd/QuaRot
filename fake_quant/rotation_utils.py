@@ -1,7 +1,7 @@
 import model_utils
 import torch
 import typing
-from . import utils
+from . import qua_utils
 import transformers
 import tqdm, math
 import quant_utils
@@ -104,7 +104,7 @@ def random_orthogonal_matrix(size, device):
     q *= torch.sign(torch.diag(r)).unsqueeze(0)
     return q
 
-def get_orthogonal_matrix(size, mode, device=utils.DEV):
+def get_orthogonal_matrix(size, mode, device=qua_utils.DEV):
     if mode == 'random':
         return random_orthogonal_matrix(size, device)
     elif mode == 'hadamard':
@@ -119,7 +119,7 @@ def rotate_embeddings(model, Q: torch.Tensor) -> None:
     model_type = model_utils.model_type_extractor(model)
     for W in model_utils.get_embeddings(model, model_type):
         dtype = W.weight.data.dtype
-        W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
+        W_ = W.weight.data.to(device=qua_utils.DEV, dtype=torch.float64)
         W.weight.data = torch.matmul(W_, Q).to(device="cpu", dtype=dtype)
 
     
@@ -127,7 +127,7 @@ def rotate_attention_inputs(layer, Q, model_type) -> None:
     # Rotate the WQ, WK and WV matrices of the self-attention layer.
     for W in [layer.self_attn.q_proj, layer.self_attn.k_proj, layer.self_attn.v_proj]:
         dtype = W.weight.dtype
-        W_ = W.weight.to(device=utils.DEV, dtype=torch.float64)
+        W_ = W.weight.to(device=qua_utils.DEV, dtype=torch.float64)
         W.weight.data = torch.matmul(W_, Q).to(device="cpu", dtype=dtype)
 
 def rotate_attention_output(layer, Q, model_type) -> None:
@@ -140,10 +140,10 @@ def rotate_attention_output(layer, Q, model_type) -> None:
         raise ValueError(f'Unknown model type {model_type}')
 
     dtype = W.weight.data.dtype
-    W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
+    W_ = W.weight.data.to(device=qua_utils.DEV, dtype=torch.float64)
     W.weight.data = torch.matmul(Q.T, W_).to(device="cpu", dtype=dtype)
     if W.bias is not None:
-        b = W.bias.data.to(device=utils.DEV, dtype=torch.float64)
+        b = W.bias.data.to(device=qua_utils.DEV, dtype=torch.float64)
         W.bias.data = torch.matmul(Q.T, b).to(device="cpu", dtype=dtype)
 
 def rotate_mlp_input(layer, Q, model_type):
@@ -156,7 +156,7 @@ def rotate_mlp_input(layer, Q, model_type):
         raise ValueError(f'Unknown model type {model_type}')
     for W in mlp_inputs:
         dtype = W.weight.dtype
-        W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
+        W_ = W.weight.data.to(device=qua_utils.DEV, dtype=torch.float64)
         W.weight.data = torch.matmul(W_, Q).to(device="cpu", dtype=dtype)
     
 def rotate_mlp_output(layer, Q, model_type):
@@ -168,11 +168,11 @@ def rotate_mlp_output(layer, Q, model_type):
     else:
         raise ValueError(f'Unknown model type {model_type}')
     dtype = W.weight.data.dtype
-    W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
+    W_ = W.weight.data.to(device=qua_utils.DEV, dtype=torch.float64)
     W.weight.data = torch.matmul(Q.T, W_).to(device="cpu", dtype=dtype)
     apply_exact_had_to_linear(W, had_dim=-1, output=False) #apply exact (inverse) hadamard on the weights of mlp output
     if W.bias is not None:
-        b = W.bias.data.to(device=utils.DEV, dtype=torch.float64)
+        b = W.bias.data.to(device=qua_utils.DEV, dtype=torch.float64)
         W.bias.data = torch.matmul(Q.T, b).to(device="cpu", dtype=dtype)
 
 def matmul_hadU_cuda_had(X, hadK, transpose=False):
@@ -210,7 +210,7 @@ def rotate_head(model, Q: torch.Tensor) -> None:
     # Rotate the head.
     W = model_utils.get_lm_head(model, model_type=model_utils.model_type_extractor(model))
     dtype = W.weight.data.dtype
-    W_ = W.weight.data.to(device=utils.DEV, dtype=torch.float64)
+    W_ = W.weight.data.to(device=qua_utils.DEV, dtype=torch.float64)
     W.weight.data = torch.matmul(W_, Q).to(device="cpu", dtype=dtype)
 
 def rotate_ov_proj(layer, model_type, head_num, head_dim):
@@ -239,7 +239,7 @@ def rotate_model(model, args):
     model_type = model_utils.model_type_extractor(model)
     rotate_embeddings(model, Q)
     rotate_head(model, Q)
-    utils.cleanup_memory()
+    qua_utils.cleanup_memory()
     layers = model_utils.get_transformer_layers(model, 
                                                 model_type=model_type)
     for idx, layer in enumerate(tqdm.tqdm(layers, unit="layer", desc="Rotating")):

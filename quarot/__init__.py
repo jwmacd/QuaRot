@@ -82,40 +82,17 @@ def apply_quarot_to_model(model, mode='hadamard'):
     Returns:
         The rotated model (in-place modification)
     """
-    import sys
-    import os
+    from fake_quant import rotation_utils
     
-    # Add fake_quant to path temporarily  
-    quarot_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    fake_quant_path = os.path.join(quarot_root, 'fake_quant')
+    # Mock args object 
+    class Args:
+        rotate_mode = mode
+        fp32_had = False
+        
+    args = Args()
     
-    # Save current sys.path
-    old_path = sys.path.copy()
-    
-    try:
-        # Clear sys.path and add only what we need
-        sys.path = [fake_quant_path, quarot_root] + [p for p in sys.path if '/app' not in p]
-        
-        # Import utils first to ensure it's available for rotation_utils
-        sys.path.insert(0, fake_quant_path)
-        import utils
-        
-        # Now import rotation_utils - it should find the utils module
-        from fake_quant import rotation_utils
-        
-        # Mock args object 
-        class Args:
-            rotate_mode = mode
-            fp32_had = False
-            
-        args = Args()
-        
-        # Apply rotation
-        rotation_utils.fuse_layer_norms(model)
-        rotation_utils.rotate_model(model, args)
-        
-    finally:
-        # Restore sys.path
-        sys.path = old_path
+    # Apply rotation
+    rotation_utils.fuse_layer_norms(model)
+    rotation_utils.rotate_model(model, args)
     
     return model
